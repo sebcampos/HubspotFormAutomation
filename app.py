@@ -7,55 +7,50 @@ logger = set_up_logger('form-automation')
 
 
 def main(args):
-    # Validation flag
     requirements_met = True
-    # web client instance
     webclient = WebClient()
-
-    # last arg
-    form_id = args[-1]
-    if form_id == '-l':
+    form_name = args[-1]
+    if form_name == '-l':
         webclient.show_form_names()
         return
-    elif form_id == '-h':
-        # help command output
+    elif form_name == '-h':
         print('Args:')
-        print('\tpython form_automation <filepath> <form_id>')
+        print('\tpython form_automation <filepath> <form_name>')
         print('Commands:')
-        string = '\tpython form_automation -h'
+        string = '\tpython form_automation -h' 
         print(f'{string:50} -> help menu')
-        string = '\tpython form_automation -l'
+        string = '\tpython form_automation -l' 
         print(f'{string:50} -> displays a list of form names and their ids')
-        string = '\tpython form_automation -sfr <form_id>'
+        string = '\tpython form_automation -sfr <form_name>'
         print(f'{string:50} -> displays required fields for this form id')
-        string = '\tpython form_automation -sf  <form_id>'
+        string = '\tpython form_automation -sf  <form_name>'
         print(f'{string:50} -> displays fields for this form id')
         return
     elif args[-2] == '-sfr':
-        # required fields output
-        print(webclient.forms[form_id][0])
-        required = webclient.get_required_form_fields(form_id)
+        print(form_name)
+        required = webclient.get_required_form_fields(form_name)
         for field in required:
             print(field)
         return
 
     elif args[-2] == '-sf':
-        # fields output
-        print(webclient.forms[form_id][0])
-        required = webclient.get_form_field_names(form_id)
+        print(webclient.forms[form_name][0])
+        required = webclient.get_form_field_names(form_name)
         for field in required:
             print(field)
         return
 
-    # read in excel, clean columns, replace NaN values
     file_path = args[-2]
+
+    # read in excel, clean columns, replace NaN values
     excel_df = pd.read_excel(file_path)
     excel_df.columns = [i.strip().replace(' ', '').lower() for i in excel_df.columns]
     excel_df.fillna('None', inplace=True)
 
     # collect fields and required fields
-    required_fields = webclient.get_required_form_fields(form_id)
-    fields = webclient.get_form_field_names(form_id)
+    required_fields = webclient.get_required_form_fields(form_name)
+    fields = webclient.get_form_field_names(form_name)
+
 
     # validate required fields are present in sheet
     for field in required_fields:
@@ -74,10 +69,12 @@ def main(args):
         return
 
     failed = ()
-    portal_id = webclient.forms[form_id][1]
+    if webclient.forms.get(form_name, None) is None:
+        logger.error(f'Form with name: {form_name} does not exist')
+        return
     pbar = tqdm(total=len(excel_df))
     for row in excel_df.itertuples(index=False):
-        form = Form(row._asdict(), portal_id, form_id)
+        form = Form(row._asdict(), form_name)
         r = webclient.submit_form_api(form)
         if r.status_code != 200:
             failed += ((form, r),)
@@ -90,3 +87,6 @@ def main(args):
 
     if len(failed) > 0:
         logger.warning('Some entries were not accepted by the api')
+        for form in failed:
+            print(form.fields)
+
