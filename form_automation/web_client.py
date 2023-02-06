@@ -1,3 +1,4 @@
+import tqdm
 from requests import Session, Response
 from .credentials import OAUTH_TOKEN_REFRESH, CLIENT_SECRET, CLIENT_ID
 from Logger import set_up_logger, logging
@@ -12,11 +13,12 @@ class WebClient(Session):
     access_token_endpoint = 'https://api.hubapi.com/oauth/v1/access-tokens/'
     refresh_token_endpoint = 'https://api.hubapi.com/oauth/v1/token'
     refresh_token_info_endpoint = 'https://api.hubapi.com/oauth/v1/refresh-tokens/'
-    submit_api_url = f'https://api.hsforms.com/submissions/v3/integration/secure/submit/'
+    submit_api_url = 'https://api.hsforms.com/submissions/v3/integration/secure/submit/'
+    submissions_api_url = 'https://api.hubapi.com/form-integrations/v1/submissions/forms'
     forms = {}
     oauth_access: str
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self):
         super().__init__()
         self.refresh_bearer_token()
         self.headers.update({'Authorization': f'Bearer {self.oauth_access}'})
@@ -63,11 +65,26 @@ class WebClient(Session):
         r = self.get_form_fields(form_id)
         return tuple(i['name'] for i in r.json() if i['required'])
 
+    def get_form_submissions(self, form_name) -> Response:
+        form_id = self.forms.get(form_name)[0]
+        form_url = self.submissions_api_url + "/" +form_id
+        r = self.get(form_url)
+        r.json()['paging']['next']['link'].replace('limit=20', 'limit=50')
+        subs = ()
+        while r.json().get('paging', False):
+            urlp2 = r.json()['paging']['next']['link'].replace('limit=20', 'limit=50')
+            r = self.get(form_url + urlp2)
+            for sub in r.json()['results']:
+                subs += (sub['values'],)
+        for sub in r.json()['results']:
+            subs += (sub['values'],)
+        return subs
+
     def get_form_field_names(self, form_name):
         form_id = self.forms.get(form_name)[0]
         r = self.get_form_fields(form_id)
         return tuple(i['name'] for i in r.json())
 
-    def submit_form_api(self, form) -> Response:
-        form_id, portal_id = self.forms[form.name]
+    def submit_form_api(self, form, form_name) -> Response:
+        form_id, portal_id = self.forms[form_name]
         return self.post(f'{self.submit_api_url}{portal_id}/{form_id}', json=form.to_dict())

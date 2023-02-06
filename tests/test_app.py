@@ -1,5 +1,7 @@
 from app import main
 
+cwd = '/Users/sebash/PycharmProjects/UpworkHubSpotClient'
+
 
 def test_help_flag():
     main(['-h'])
@@ -7,6 +9,10 @@ def test_help_flag():
 
 def test_list_form_names():
     main(['-l'])
+
+
+def test_validate_form_submission():
+    main(['-v', cwd + '/test_data/TestFile2.xlsx', 'Logistics Management Test'])
 
 
 def test_show_required_fields():
@@ -18,8 +24,8 @@ def test_show_field_names():
 
 
 def test_invalid_form_in_main():
-    main(['../test_data/TestFile.xlsx', 'Logistics Management Test'])
+    main([cwd + '/test_data/TestFile.xlsx', 'Logistics Management Test'])
 
 
 def test_main():
-    main(['../test_data/TestFile2.xlsx', 'Logistics Management Test'])
+    main([cwd + '/test_data/TestFile2.xlsx', 'Logistics Management Test'])
