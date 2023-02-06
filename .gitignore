@@ -1,3 +1,4 @@
+*.pytest_cache
 *__pycache__
 test_data
 form_automation/credentials
